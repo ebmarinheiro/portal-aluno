@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal do Aluno - Acesso via Link por E-mail</title>
+  <style>
+    :root {
+      --primary: #1e40af;
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --border: #cbd5e1;
+      --text: #0f172a;
+      --muted: #64748b;
+      --success: #15803d;
+      --danger: #b91c1c;
+      --warning: #b45309;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); min-height: 100vh; padding: 16px; display: flex; flex-direction: column; align-items: center; }
+    .container { width: 100%; max-width: 520px; }
+    
+    .card { background: var(--card); border-radius: 12px; padding: 20px; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-bottom: 16px; }
+    h1 { font-size: 18px; color: var(--primary); text-align: center; margin-bottom: 12px; font-weight: 700; }
+    
+    .field { margin-bottom: 14px; }
+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+    select, input { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; }
+    button.btn-submit { width: 100%; background: var(--primary); color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+    button.btn-submit:hover { opacity: 0.9; }
+
+    .hidden { display: none; }
+    .student-header { border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px; }
+    .student-name { font-size: 18px; font-weight: 700; }
+    .student-sub { font-size: 13px; color: var(--muted); }
+
+    .score-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .score-card { background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center; }
+    .score-title { font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+    .score-val { font-size: 20px; font-weight: 800; color: var(--primary); margin-top: 4px; }
+    .score-sub { font-size: 11px; color: var(--muted); }
+
+    .task-item { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 10px; background: #fff; }
+    .task-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: 700; }
+    .b-check { background: #dcfce7; color: var(--success); }
+    .b-x { background: #fee2e2; color: var(--danger); }
+    .b-incomp { background: #fef3c7; color: var(--warning); }
+    .b-falta { background: #f1f5f9; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- SOLICITAR LINK POR E-MAIL -->
+    <div class="card" id="box-request">
+      <h1>Acesso Individual do Aluno</h1>
+      <p style="font-size: 13px; color: var(--muted); text-align: center; margin-bottom: 16px;">
+        Informe sua turma e número de chamada para receber o seu link de acesso seguro por e-mail.
+      </p>
+
+      <div class="field">
+        <label>Turma:</label>
+        <select id="campo-turma">
+          <option value="6º EF">6º Ano EF</option>
+          <option value="7º EF">7º Ano EF</option>
+          <option value="8º EF">8º Ano EF</option>
+          <option value="9º EF">9º Ano EF</option>
+          <option value="1º EM">1º Ano EM</option>
+          <option value="2º EM">2º Ano EM</option>
+          <option value="3º EM">3º Ano EM</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Número de Chamada (2 dígitos):</label>
+        <input type="text" id="campo-numero" placeholder="Ex: 01" maxlength="2">
+      </div>
+
+      <button class="btn-submit" onclick="solicitarLink()">Enviar Link para Meu E-mail</button>
+      <p id="msg-feedback" style="font-size: 13px; text-align: center; margin-top: 12px; display: none;"></p>
+    </div>
+
+    <!-- TELA INDIVIDUAL DO ESTUDANTE (SOMENTE LEITURA) -->
+    <div class="card hidden" id="box-resultado">
+      <div class="student-header">
+        <div class="student-name" id="res-nome">Nome do Aluno</div>
+        <div class="student-sub" id="res-detalhe">Turma • Chamada Nº --</div>
+      </div>
+
+      <div class="score-cards" id="res-notas"></div>
+
+      <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 10px;">Suas Atividades:</h3>
+      <div id="res-tarefas"></div>
+
+      <button onclick="sair()" style="width: 100%; background: #e2e8f0; border: none; padding: 10px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 14px;">Encerrar Sessão</button>
+    </div>
+  </div>
+
+  <script>
+    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbyVjVCqt_dcl4SBd6mYjZaB8h6Yg5sVdnQ15p2IN2UPaczQOcQDoOj-B_3IuIVGp77r/exec";
+
+    // Detecta se o aluno já abriu o site diretamente pelo link recebido no e-mail
+    window.addEventListener("DOMContentLoaded", () => {
+      const params = new URLSearchParams(window.location.search);
+      const turma = params.get("turma");
+      const num = params.get("num");
+      const token = params.get("token");
+
+      if (turma && num && token) {
+        carregarPorMagicLink(turma, num, token);
+      }
+    });
+
+    function solicitarLink() {
+      const turma = document.getElementById("campo-turma").value;
+      const numero = document.getElementById("campo-numero").value.trim().padStart(2, "0");
+      const feedback = document.getElementById("msg-feedback");
+
+      if (!numero) {
+        feedback.style.color = "var(--danger)";
+        feedback.textContent = "Digite o número de chamada.";
+        feedback.style.display = "block";
+        return;
+      }
+
+      feedback.style.color = "var(--primary)";
+      feedback.textContent = "Enviando e-mail...";
+      feedback.style.display = "block";
+
+      const portalUrl = window.location.origin + window.location.pathname;
+
+      fazerChamadaJsonp({
+        action: "sendLink",
+        turma: turma,
+        numero: numero,
+        portalUrl: portalUrl
+      }, (data) => {
+        if (data.erro) {
+          feedback.style.color = "var(--danger)";
+          feedback.textContent = data.erro;
+        } else {
+          feedback.style.color = "var(--success)";
+          feedback.textContent = data.mensagem;
+        }
+      });
+    }
+
+    function carregarPorMagicLink(turma, num, token) {
+      document.getElementById("box-request").classList.add("hidden");
+      const feedback = document.getElementById("msg-feedback");
+
+      fazerChamadaJsonp({
+        turma: turma,
+        numero: num,
+        token: token
+      }, (data) => {
+        if (data.erro) {
+          document.getElementById("box-request").classList.remove("hidden");
+          feedback.style.color = "var(--danger)";
+          feedback.textContent = data.erro;
+          feedback.style.display = "block";
+        } else {
+          exibirAluno(data);
+        }
+      });
+    }
+
+    function fazerChamadaJsonp(params, callbackFn) {
+      const scriptAntigo = document.getElementById("jsonp-magic");
+      if (scriptAntigo) scriptAntigo.remove();
+
+      window.jsonpCallbackHandler = function(res) {
+        callbackFn(res);
+      };
+
+      const query = new URLSearchParams(params);
+      query.append("callback", "jsonpCallbackHandler");
+
+      const script = document.createElement("script");
+      script.id = "jsonp-magic";
+      script.src = `${URL_APPS_SCRIPT}?${query.toString()}`;
+      script.onerror = function() {
+        alert("Erro de conexão ao acessar a planilha.");
+      };
+      document.body.appendChild(script);
+    }
+
+    function exibirAluno(aluno) {
+      document.getElementById("box-request").classList.add("hidden");
+      document.getElementById("box-resultado").classList.remove("hidden");
+
+      document.getElementById("res-nome").textContent = aluno.nome;
+      document.getElementById("res-detalhe").textContent = `${aluno.turma} • Nº ${aluno.numero}`;
+
+      const isEF = aluno.turma.includes("EF");
+      const notasBox = document.getElementById("res-notas");
+
+      if (isEF) {
+        notasBox.innerHTML = `
+          <div class="score-card">
+            <div class="score-title">Vistos Entregues</div>
+            <div class="score-val">${aluno.feitas} / ${aluno.totalSala}</div>
+            <div class="score-sub">Régua da sala</div>
+          </div>
+          <div class="score-card">
+            <div class="score-title">Nota Inglês</div>
+            <div class="score-val">${aluno.nota10} <span style="font-size:12px;">/ 10</span></div>
+            <div class="score-sub">Teto máx: 10,0</div>
+          </div>
+          <div class="score-card" style="grid-column: span 2;">
+            <div class="score-title">Nota Diário (Composição)</div>
+            <div class="score-val" style="color: var(--success);">${aluno.nota8} <span style="font-size:12px;">/ 8,0</span></div>
+            <div class="score-sub">Para composição bimestral</div>
+          </div>
+        `;
+      } else {
+        notasBox.innerHTML = `
+          <div class="score-card">
+            <div class="score-title">Vistos Entregues</div>
+            <div class="score-val">${aluno.feitas} / ${aluno.totalSala}</div>
+            <div class="score-sub">Régua da sala</div>
+          </div>
+          <div class="score-card">
+            <div class="score-title">Nota Parcial</div>
+            <div class="score-val">${aluno.nota10} <span style="font-size:12px;">/ 10</span></div>
+            <div class="score-sub">Teto máx: 10,0</div>
+          </div>
+        `;
+      }
+
+      const tarefasBox = document.getElementById("res-tarefas");
+      tarefasBox.innerHTML = "";
+
+      aluno.tarefas.forEach(t => {
+        let badgeHtml = "";
+        const st = String(t.status).toLowerCase();
+        if (st.includes("check")) badgeHtml = `<span class="badge b-check">✔️ Vistado</span>`;
+        else if (st.includes("x")) badgeHtml = `<span class="badge b-x">❌ Não Fez</span>`;
+        else if (st.includes("incompleto")) badgeHtml = `<span class="badge b-incomp">⚠️ Incompleto</span>`;
+        else if (st.includes("falta")) badgeHtml = `<span class="badge b-falta">🚫 Falta na data</span>`;
+        else badgeHtml = `<span class="badge b-falta">⏳ Não avaliado</span>`;
+
+        const div = document.createElement("div");
+        div.className = "task-item";
+        div.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="task-title">${t.titulo}</span>
+            ${badgeHtml}
+          </div>
+        `;
+        tarefasBox.appendChild(div);
+      });
+    }
+
+    function sair() {
+      window.location.href = window.location.origin + window.location.pathname;
+    }
+  </script>
+</body>
+</html>
